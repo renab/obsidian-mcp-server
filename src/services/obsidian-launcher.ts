@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { stat } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { access, stat } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 const recentLaunches = new Map<string, number>();
 const cooldownMilliseconds = 15_000;
@@ -18,8 +18,13 @@ export async function openObsidianVault(vaultPath: string): Promise<VaultLaunchR
   const previous = recentLaunches.get(path) ?? 0;
   if (Date.now() - previous < cooldownMilliseconds) return { launched: false, launchSuppressed: true, uri };
 
-  const command = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
-  const child = spawn(command, [uri], { detached: true, stdio: 'ignore', windowsHide: true });
+  let command = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA ?? (process.env.USERPROFILE ? join(process.env.USERPROFILE, 'AppData', 'Local') : undefined);
+    const installed = localAppData ? join(localAppData, 'Programs', 'Obsidian', 'Obsidian.exe') : undefined;
+    if (installed && await access(installed).then(() => true).catch(() => false)) command = installed;
+  }
+  const child = spawn(command, [uri], { detached: true, stdio: 'ignore', windowsHide: false });
   await new Promise<void>((resolvePromise, rejectPromise) => {
     child.once('spawn', resolvePromise);
     child.once('error', rejectPromise);
