@@ -23,10 +23,10 @@ This checklist mirrors the user-provided implementation order and remains the co
 19. [x] Configure Obsidian Git and install required plugin release assets when available.
 20. [x] Add `create_vault`.
 21. [x] Add migration and secret-management documentation.
-22. [ ] Sweetwater import, repository preservation, plugin installation, registry routing, and secret exclusion are verified; live REST awaits Obsidian availability.
+22. [x] Sweetwater import, repository preservation, runtime plugin activation, live registry routing, and secret exclusion are verified.
 23. [x] Create and verify a private-repository EVE-character test vault (correctly offline until opened in Obsidian).
 24. [x] Create and verify a private-repository book-project test vault (correctly offline until opened in Obsidian).
-25. [ ] One MCP process routes three registered vaults and three authenticated mock REST endpoints independently; simultaneous actual Obsidian REST awaits application availability.
+25. [x] One MCP process routes all three registered vaults independently through simultaneous authenticated live Obsidian REST endpoints; mock coverage remains as deterministic regression evidence.
 26. [ ] All three are independently addressable for local tools; live REST addressability remains open.
 27. [x] Audit schemas and code for absence of remote repository deletion.
 28. [ ] The parity inventory identifies remaining folder/custom-sort and live REST gaps; the original Sweetwater MCP remains intact and must not be retired yet.

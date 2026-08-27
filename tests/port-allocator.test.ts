@@ -6,9 +6,21 @@ import { allocateRestPort } from '../src/services/port-allocator.js';
 
 test('allocator skips registry-used and OS-bound ports', async () => {
   const server = createServer();
-  await new Promise<void>((resolve, reject) => server.once('error', reject).listen(27125, '127.0.0.1', resolve));
+  let boundPort = 0;
+  for (let candidate = 27124; candidate < 27299; candidate += 1) {
+    try {
+      await new Promise<void>((resolve, reject) => server.once('error', reject).listen(candidate, '127.0.0.1', resolve));
+      boundPort = candidate;
+      break;
+    } catch {
+      // A real Obsidian endpoint may already occupy this port during live runs.
+    }
+  }
+  assert.ok(boundPort > 0, 'expected an available port in the allocation range');
   try {
-    assert.equal(await allocateRestPort([27124]), 27126);
+    const used = Array.from({ length: boundPort - 27124 }, (_, index) => 27124 + index);
+    const allocated = await allocateRestPort(used);
+    assert.ok(allocated > boundPort, 'allocator should skip the OS-bound port');
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
