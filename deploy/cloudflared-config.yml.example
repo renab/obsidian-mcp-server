@@ -1,0 +1,8 @@
+# Merge this ingress entry into the named tunnel configuration used by cloudflared.
+tunnel: YOUR_TUNNEL_UUID
+credentials-file: C:\\Windows\\System32\\config\\systemprofile\\.cloudflared\\YOUR_TUNNEL_UUID.json
+
+ingress:
+  - hostname: obsidian-mcp.example.com
+    service: http://127.0.0.1:3003
+  - service: http_status:404

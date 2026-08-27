@@ -3,9 +3,9 @@
  * Builds and analyzes the vault's link graph for relationship queries
  */
 
-import Graph from 'graphology';
-import louvain from 'graphology-communities-louvain';
-import pagerank from 'graphology-metrics/centrality/pagerank.js';
+import { default as Graph } from 'graphology';
+import { default as louvain } from 'graphology-communities-louvain';
+import { default as pagerank } from 'graphology-metrics/centrality/pagerank.js';
 import { bidirectional } from 'graphology-shortest-path';
 import { promises as fs } from 'node:fs';
 import { join, relative, basename, extname } from 'node:path';

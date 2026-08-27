@@ -10,7 +10,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**/*', '.test-dist/**/*', '.runtime/**/*', 'tsup.config.ts', 'eslint.config.js'],
+    ignores: ['dist/**/*', '.test-dist/**/*', '.runtime/**/*', 'tsup.config.ts', 'eslint.config.js', 'ecosystem.config.cjs'],
   },
   js.configs.recommended,
   {

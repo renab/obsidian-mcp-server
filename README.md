@@ -40,6 +40,47 @@ When authenticated, `create_vault` creates a private repository and pushes the d
 
 Remote repository deletion is not supported. There is no deletion tool, configuration switch, rollback step, or unregister option capable of deleting a GitHub repository. `unregister_vault` changes only the MCP registry.
 
+## Remote Streamable HTTP, PM2, and Cloudflare Tunnel
+
+The stdio entry point remains `dist/index.js`. A separate stateless Streamable HTTP entry point is built as `dist/http.js`, matching the EVE MCP deployment pattern:
+
+- `GET /health` — minimal health response
+- `POST /mcp` — MCP Streamable HTTP endpoint
+- loopback binding by default (`127.0.0.1:3003`)
+
+Build and verify locally:
+
+```powershell
+npm install
+npm run build
+$env:OBSIDIAN_VAULT_ROOT = "$PWD\.runtime\vaults"
+$env:OBSIDIAN_VAULT_REGISTRY = "$PWD\.runtime\vault-registry.json"
+npm run start:http
+Invoke-RestMethod http://127.0.0.1:3003/health
+```
+
+The included `ecosystem.config.cjs` supplies the development registry paths and keeps the origin bound to loopback:
+
+```powershell
+npm install --global pm2
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 status
+pm2 logs obsidian-multi-vault-mcp
+Invoke-RestMethod http://127.0.0.1:3003/health
+```
+
+After a rebuild, apply it with `pm2 restart obsidian-multi-vault-mcp --update-env`. `pm2 save` records the current process list but does not itself create a Windows boot service; configure the same Windows PM2 service integration used by the EVE MCP, or a scheduled task under the owning user that runs `pm2 resurrect` at startup.
+
+This host uses a remotely-managed Cloudflare Tunnel Windows service. In Cloudflare Zero Trust, open the existing tunnel and add a **Published application** route:
+
+```text
+Public hostname: obsidian-mcp.<your-domain>
+Service:         http://127.0.0.1:3003
+```
+
+Protect that exact hostname with a Cloudflare Access self-hosted application and the same authentication policy used for the EVE MCP. The connector URL is `https://obsidian-mcp.<your-domain>/mcp`. The local origin intentionally does not implement separate authentication, so keep it on `127.0.0.1` and do not expose port 3003 through the Windows firewall or router. A locally-managed tunnel example is also available at `deploy/cloudflared-config.yml.example`.
+
 ## Vault management tools
 
 - `create_vault`: instantiate a template, generate an independent API key, allocate a free port in 27124–27299, initialize Git, optionally create a private GitHub repository, and register the vault.

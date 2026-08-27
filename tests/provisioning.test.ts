@@ -6,10 +6,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 
+import { createTemplateManager } from './template-fixture.js';
 import { runExecutable } from '../src/services/git-service.js';
 import { VaultProvisioner } from '../src/services/vault-provisioner.js';
 import { VaultRegistry } from '../src/services/vault-registry.js';
-import { createTemplateManager } from './template-fixture.js';
 
 const run = promisify(execFile);
 

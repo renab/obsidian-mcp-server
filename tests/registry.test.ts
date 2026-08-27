@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { VaultRegistry } from '../src/services/vault-registry.js';
 import { createTemplateManager } from './template-fixture.js';
+import { VaultRegistry } from '../src/services/vault-registry.js';
 
 import type { VaultConfig } from '../src/types.js';
 
