@@ -29,6 +29,6 @@ This checklist mirrors the user-provided implementation order and remains the co
 25. [ ] One MCP process routes three registered vaults independently; simultaneous live REST awaits Obsidian availability.
 26. [ ] All three are independently addressable for local tools; live REST addressability remains open.
 27. [x] Audit schemas and code for absence of remote repository deletion.
-28. [ ] Consider retiring the original Sweetwater MCP only after feature parity; retirement is not automatic.
+28. [ ] The parity inventory identifies remaining folder/custom-sort and live REST gaps; the original Sweetwater MCP remains intact and must not be retired yet.
 
 The project is not complete until the full Definition of Done—including live Obsidian REST health, independent private remotes, secret audit, Sweetwater preservation, upstream compatibility, and old-MCP parity—is verified.
