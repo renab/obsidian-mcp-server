@@ -1,5 +1,9 @@
 # Dependencies
 node_modules/
+.pnpm-store/
+.test-dist/
+.backups/
+.runtime/
 
 # Build output
 dist/

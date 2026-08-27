@@ -3,13 +3,14 @@
  * Reads from environment variables with sensible defaults
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import type { Config, VaultConfig } from './types.js';
 
 const DEFAULT_VAULT_ID = 'default';
 
-function normalizeVaultConfig(
+export function normalizeVaultConfig(
   partial: Partial<VaultConfig>,
   fallbackId: string,
   globalVerifySsl: boolean
@@ -57,6 +58,18 @@ function loadVaultsFromJson(source: string, globalVerifySsl: boolean): Record<st
 }
 
 function loadVaults(globalVerifySsl: boolean): Record<string, VaultConfig> {
+  const registryPath = process.env.OBSIDIAN_VAULT_REGISTRY;
+  if (registryPath && existsSync(registryPath)) {
+    const parsed = JSON.parse(readFileSync(registryPath, 'utf8')) as { vaults?: Partial<VaultConfig>[] };
+    if (parsed.vaults?.length) {
+      const vaults: Record<string, VaultConfig> = {};
+      parsed.vaults.forEach((entry, index) => {
+        const normalized = normalizeVaultConfig(entry, `vault-${index}`, globalVerifySsl);
+        vaults[normalized.id] = normalized;
+      });
+      return vaults;
+    }
+  }
   const filePath = process.env.OBSIDIAN_VAULTS_FILE;
   if (filePath) {
     const contents = readFileSync(filePath, 'utf-8');
@@ -129,7 +142,16 @@ export function loadConfig(): Config {
     vaults,
     graphCacheTtl,
     verifySsl: globalVerifySsl,
+    vaultRoot: process.env.OBSIDIAN_VAULT_ROOT ? resolve(process.env.OBSIDIAN_VAULT_ROOT) : undefined,
+    registryPath: process.env.OBSIDIAN_VAULT_REGISTRY ? resolve(process.env.OBSIDIAN_VAULT_REGISTRY) : undefined,
   };
+}
+
+export function replaceConfiguredVaults(vaults: VaultConfig[]): Config {
+  const config = getConfig();
+  config.vaults = Object.fromEntries(vaults.map((vault) => [vault.id, normalizeVaultConfig(vault, vault.id, config.verifySsl)]));
+  if (!config.vaults[config.defaultVaultId] && vaults[0]) config.defaultVaultId = vaults[0].id;
+  return config;
 }
 
 /** Singleton config instance */

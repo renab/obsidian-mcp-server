@@ -46,6 +46,16 @@ export class ObsidianRestService {
     }
   }
 
+  /** Return real endpoint health; never infer connectivity from filesystem state. */
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.client.get('/');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * List all files and directories in the vault root
    */

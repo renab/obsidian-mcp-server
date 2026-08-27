@@ -104,6 +104,14 @@ export interface VaultConfig {
   vaultPath?: string;
   smartConnectionsPort?: number;
   verifySsl?: boolean;
+  name?: string;
+  repository?: string;
+  template?: string | null;
+  createdAt?: string | null;
+  imported?: boolean;
+  managed?: boolean;
+  gitEnabled?: boolean;
+  lifecycle?: 'provisioning' | 'configured' | 'offline' | 'connected' | 'error';
 }
 
 /** Global configuration options */
@@ -112,4 +120,6 @@ export interface Config {
   vaults: Record<string, VaultConfig>;
   graphCacheTtl: number;
   verifySsl: boolean;
+  vaultRoot?: string;
+  registryPath?: string;
 }

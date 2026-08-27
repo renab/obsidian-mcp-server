@@ -10,7 +10,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**/*', 'tsup.config.ts', 'eslint.config.js'],
+    ignores: ['dist/**/*', '.test-dist/**/*', '.runtime/**/*', 'tsup.config.ts', 'eslint.config.js'],
   },
   js.configs.recommended,
   {
@@ -18,7 +18,7 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        projectService: true,
+        projectService: { allowDefaultProject: ['tests/*.ts'] },
         tsconfigRootDir: import.meta.dirname,
         ecmaVersion: 2022,
         sourceType: 'module',

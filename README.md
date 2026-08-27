@@ -1,5 +1,87 @@
 # Obsidian MCP Server
 
+> This fork extends the upstream server with dynamic, registry-backed multi-vault management while preserving the existing `vaultId` routing model.
+
+## Managed multi-vault architecture
+
+One MCP process can serve any number of independently addressable Obsidian vaults. Each managed vault has its own directory, Local REST API key and port, lifecycle state, and—normally—its own Git repository. The mutable registry is reloaded into the running server after every management operation, so a newly registered vault is immediately accepted by existing read, write, search, graph, and semantic tools without changing MCP client configuration.
+
+Configuration precedence is:
+
+1. A non-empty `OBSIDIAN_VAULT_REGISTRY` document.
+2. `OBSIDIAN_VAULTS_FILE`.
+3. `OBSIDIAN_VAULTS_JSON`.
+4. Legacy `OBSIDIAN_API_KEY` and related single-vault variables.
+
+The registry contains Local REST credentials and must remain outside every vault repository. It is written atomically with owner-only permissions where the operating system supports them. API keys are never returned by management tools or placed in `.mcp-vault.json`.
+
+### Windows configuration
+
+```powershell
+$env:OBSIDIAN_VAULT_ROOT = 'C:\Users\you\Obsidian'
+$env:OBSIDIAN_VAULT_REGISTRY = 'C:\Users\you\.config\obsidian-mcp\vault-registry.json'
+$env:OBSIDIAN_API_KEY = 'bootstrap-key'
+```
+
+`OBSIDIAN_VAULT_ROOT` constrains newly created directories. IDs must be lowercase slugs, repository names are validated, paths are canonicalized, and native Git/GitHub commands are invoked with argument arrays rather than interpolated shell commands.
+
+### GitHub prerequisites
+
+Install Git and GitHub CLI, then authenticate once:
+
+```powershell
+git --version
+gh --version
+gh auth login
+gh auth status
+```
+
+When authenticated, `create_vault` creates a private repository and pushes the deterministic initial commit. If GitHub provisioning is unavailable, the filesystem and local-Git result is reported accurately. A repository created before a later failure is deliberately preserved and reported.
+
+Remote repository deletion is not supported. There is no deletion tool, configuration switch, rollback step, or unregister option capable of deleting a GitHub repository. `unregister_vault` changes only the MCP registry.
+
+## Vault management tools
+
+- `create_vault`: instantiate a template, generate an independent API key, allocate a free port in 27124–27299, initialize Git, optionally create a private GitHub repository, and register the vault.
+- `register_vault`: import an existing vault without running `git init`, changing its branch or remote, or rewriting its history.
+- `unregister_vault`: remove only the registry entry.
+- `get_vault_info` and `list_vaults`: return lifecycle, REST, Git, repository, template, and capability state without credentials.
+- `list_vault_templates`: list `default`, `project`, `eve-character`, and `book-project`.
+- `git_status`, `git_commit`, `git_history`, and `git_sync`: scoped native-Git operations. Commit does not push; sync reports conflicts rather than resolving them destructively.
+
+Example creation request:
+
+```json
+{
+  "id": "eve-wormhole-alpha",
+  "name": "EVE - Wormhole Alpha",
+  "template": "eve-character",
+  "githubRepoName": "obsidian-eve-wormhole-alpha"
+}
+```
+
+Filesystem creation can succeed while Obsidian is closed. Such a vault is `offline`, not falsely `connected`; open it in Obsidian and enable/install the community plugins named in `.obsidian/community-plugins.json` before expecting REST connectivity.
+
+## Templates and Obsidian configuration
+
+Templates track safe Obsidian settings and declare Obsidian Git plus Local REST API. Workspace files and Local REST API `data.json` are ignored because they are machine-specific or secret-bearing. The rest of `.obsidian` is intentionally not ignored, allowing safe plugin settings to travel between machines. Obsidian Git defaults to pull on open and ten-minute commit/push intervals.
+
+The `book-project` template generalizes structural conventions observed in the existing Sweetwater writing vault without copying its prose or project-specific facts: linked index notes, typed frontmatter, separate planning/research/manuscript/story-bible/continuity/revision/publishing areas, independently linkable chapters, continuity trackers, and object templates. It includes templates for chapters, sources, characters, locations, revision issues, decisions, and open questions.
+
+## Importing Sweetwater or another Git-backed vault
+
+Back up the vault first. Then call `register_vault` with its existing path, ID, name, REST key, and port. Registration detects `.git`, reads the branch and origin, preserves history and remote configuration, appends only missing secret/workspace exclusions to the existing `.gitignore`, and writes non-secret `.mcp-vault.json` metadata. It never initializes or replaces the repository.
+
+For Sweetwater migration, run the old and new MCPs in parallel until read/write/search and Git behavior match. Do not retire the old MCP until the new server can address Sweetwater and at least two provisioned vaults independently and their Local REST endpoints are healthy.
+
+## Troubleshooting
+
+- `OBSIDIAN_VAULT_REGISTRY must be configured`: set an absolute registry path outside vault repositories.
+- GitHub repository not created: check `gh auth status`; the server degrades without crashing.
+- Vault reports `offline`: open that vault in Obsidian and verify Local REST API is enabled on its assigned unique port.
+- REST authentication fails: verify the ignored plugin `data.json` matches the registry; never commit or paste the key into logs.
+- Git sync conflicts: resolve them manually; the MCP does not overwrite conflicts or reset local changes.
+
 [![npm version](https://img.shields.io/npm/v/@connorbritain/obsidian-mcp-server.svg)](https://www.npmjs.com/package/@connorbritain/obsidian-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -32,11 +114,13 @@ npm install -g @connorbritain/obsidian-mcp-server
 ### From source
 
 ```bash
-git clone https://github.com/ConnorBritain/obsidian-mcp-server.git
+git clone git@github.com:renab/obsidian-mcp-server.git
 cd obsidian-mcp-server
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
+
+The upstream npm package does not include this fork's vault-management extensions; install the fork from source for the workflows documented above.
 
 ## Configuration
 
@@ -53,6 +137,8 @@ Set the following environment variables:
 | `GRAPH_CACHE_TTL` | No | `300` | Graph cache TTL in seconds |
 | `OBSIDIAN_VAULTS_JSON` | No | - | JSON string describing one or more vaults. Overrides the single `OBSIDIAN_API_KEY` style config. |
 | `OBSIDIAN_VAULTS_FILE` | No | - | Path to a JSON file describing one or more vaults (same shape as `OBSIDIAN_VAULTS_JSON`). |
+| `OBSIDIAN_VAULT_REGISTRY` | For management | - | Mutable registry path outside all vault repositories. Takes precedence when non-empty. |
+| `OBSIDIAN_VAULT_ROOT` | For creation/import | - | Canonical parent directory allowed for managed vault filesystem access. |
 | `OBSIDIAN_DEFAULT_VAULT` | No | first defined | Name/ID of the vault to use when a tool call omits `vaultId`. |
 
 > **Multi-vault note:** If neither `OBSIDIAN_VAULTS_JSON` nor `OBSIDIAN_VAULTS_FILE` is provided, the legacy single-vault env vars (`OBSIDIAN_API_KEY`, `OBSIDIAN_HOST`, etc.) are used to create a `default` vault entry automatically.
@@ -119,9 +205,9 @@ In your `obsidian-vaults.json` file (or `OBSIDIAN_VAULTS_JSON` env var), specify
 ]
 ```
 
-#### Step 3: Restart Your MCP Client
+#### Step 3: Reload static configuration only when needed
 
-After updating the JSON file, restart your MCP client (Windsurf, Claude Desktop, etc.) so it reloads the configuration with the new ports.
+After updating legacy `OBSIDIAN_VAULTS_FILE` or `OBSIDIAN_VAULTS_JSON`, restart your MCP client so it reloads static configuration. Managed registry changes made through `create_vault`, `register_vault`, or `unregister_vault` refresh the running process immediately and do not require a restart.
 
 #### Verifying Connectivity
 
@@ -136,9 +222,9 @@ A successful response returns a JSON object with the vault's file listing. If yo
 
 ## MCP Client Configuration
 
-### Using npx (Recommended)
+### Using the upstream npm package
 
-Use `npx` for the simplest setup:
+This preserves the upstream static configuration but does not include this fork's management extensions:
 
 ```json
 {
@@ -159,7 +245,7 @@ Use `npx` for the simplest setup:
 
 ### Using Local Build (Development)
 
-If running from source:
+Use the local fork build for dynamic management. Example ChatGPT/Codex-compatible MCP configuration on Windows:
 
 ```json
 {
@@ -168,9 +254,9 @@ If running from source:
       "command": "node",
       "args": ["/absolute/path/to/obsidian-mcp-server/dist/index.js"],
       "env": {
-        "OBSIDIAN_API_KEY": "your-api-key-here",
-        "OBSIDIAN_VAULT_PATH": "/path/to/your/vault",
-        "OBSIDIAN_VAULTS_JSON": "[{\"id\":\"work\",\"apiKey\":\"...\",\"vaultPath\":\"/work\"}]"
+        "OBSIDIAN_API_KEY": "bootstrap-only-key",
+        "OBSIDIAN_VAULT_ROOT": "C:/Users/you/Obsidian",
+        "OBSIDIAN_VAULT_REGISTRY": "C:/Users/you/.config/obsidian-mcp/vault-registry.json"
       }
     }
   }
@@ -195,6 +281,12 @@ All tools accept an optional `vaultId` argument. If omitted, the server uses the
 | Tool | Description |
 |------|-------------|
 | `list_vaults` | List all configured vaults with their IDs, capabilities, and connection info |
+| `get_vault_info` | Inspect lifecycle, REST, Git, repository, template, and capability state without secrets |
+| `list_vault_templates` | List reusable template families |
+| `register_vault` | Import an existing vault while preserving Git state |
+| `unregister_vault` | Remove only the registry entry; never delete local or remote data |
+| `create_vault` | Provision a templated vault, plugins, Git, private GitHub repository, port, and registry entry |
+| `git_status` / `git_commit` / `git_sync` / `git_history` | Perform scoped, non-destructive Git management |
 
 ### Core File Operations
 

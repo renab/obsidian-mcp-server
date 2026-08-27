@@ -13,10 +13,14 @@ import {
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, extname } from 'node:path';
 
-import { getConfig } from './config.js';
+import { getConfig, replaceConfiguredVaults } from './config.js';
+import { commandCapabilities, gitCommit, gitHistory, gitInfo, gitSync } from './services/git-service.js';
 import { GraphService } from './services/graph-service.js';
 import { ObsidianRestService } from './services/obsidian-rest.js';
 import { SmartConnectionsService } from './services/smart-connections.js';
+import { TemplateManager } from './services/template-manager.js';
+import { VaultProvisioner } from './services/vault-provisioner.js';
+import { VaultRegistry } from './services/vault-registry.js';
 import { ALL_TOOLS } from './tools/index.js';
 
 import type { Config, VaultConfig } from './types.js';
@@ -48,14 +52,18 @@ class ObsidianMCPServer {
   private restServices = new Map<string, ObsidianRestService>();
   private graphServices = new Map<string, GraphService>();
   private semanticServices = new Map<string, SmartConnectionsService>();
+  private registry?: VaultRegistry;
+  private templates = new TemplateManager();
+  private managementCapabilities = { git: false, gh: false, githubAuthenticated: false };
 
   constructor() {
     this.config = getConfig();
+    if (this.config.registryPath) this.registry = new VaultRegistry(this.config.registryPath);
 
     this.server = new Server(
       {
         name: 'obsidian-mcp-server',
-        version: '0.1.0',
+        version: '0.3.0',
       },
       {
         capabilities: {
@@ -262,16 +270,43 @@ class ObsidianMCPServer {
     name: string,
     args: Record<string, unknown>
   ): Promise<CallToolResult> {
-    // Handle list_vaults first - doesn't require vault resolution
+    const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
+    const requireRegistry = () => {
+      if (!this.registry) throw new Error('OBSIDIAN_VAULT_REGISTRY must be configured for vault management');
+      return this.registry;
+    };
+    const refresh = async () => {
+      const document = await requireRegistry().load();
+      replaceConfiguredVaults(document.vaults);
+      this.restServices.clear(); this.graphServices.clear(); this.semanticServices.clear();
+    };
+
+    if (name === 'list_vault_templates') return json(await this.templates.list());
+    if (name === 'register_vault') {
+      if (!this.config.vaultRoot) throw new Error('OBSIDIAN_VAULT_ROOT must be configured');
+      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry(), this.templates).register({
+        id: String(args.id), name: String(args.name), vaultPath: String(args.vaultPath), apiKey: String(args.apiKey),
+        restPort: Number(args.restPort), repository: args.repository as string | undefined,
+      });
+      await refresh(); return json(result);
+    }
+    if (name === 'create_vault') {
+      if (!this.config.vaultRoot) throw new Error('OBSIDIAN_VAULT_ROOT must be configured');
+      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry(), this.templates).create(args as never);
+      await refresh(); return json(result);
+    }
+    if (name === 'unregister_vault') {
+      await requireRegistry().remove(String(args.vaultId)); await refresh();
+      return json({ vaultId: String(args.vaultId), unregistered: true, localFilesModified: false, remoteRepositoryModified: false });
+    }
+
     if (name === 'list_vaults') {
-      const vaults = Object.entries(this.config.vaults).map(([id, vault]) => ({
-        id,
-        isDefault: id === this.config.defaultVaultId,
-        hasVaultPath: !!vault.vaultPath,
-        hasSmartConnections: !!vault.smartConnectionsPort,
-        host: vault.host,
-        port: vault.port,
-        protocol: vault.protocol,
+      const vaults = await Promise.all(Object.entries(this.config.vaults).map(async ([id, vault]) => {
+        const git = vault.vaultPath ? await gitInfo(vault.vaultPath) : { enabled: false, dirty: false, repository: null };
+        const connected = await this.getRestService(id).healthCheck();
+        return { id, name: vault.name, isDefault: id === this.config.defaultVaultId, connected,
+          gitEnabled: git.enabled, gitDirty: git.dirty, repositoryConfigured: !!git.repository,
+          restReachable: connected, imported: !!vault.imported, lifecycle: connected ? 'connected' : (vault.lifecycle ?? 'offline'), port: vault.port, protocol: vault.protocol };
       }));
       return {
         content: [
@@ -280,6 +315,7 @@ class ObsidianMCPServer {
             text: JSON.stringify(
               {
                 defaultVaultId: this.config.defaultVaultId,
+                managementCapabilities: this.managementCapabilities,
                 vaults,
               },
               null,
@@ -288,6 +324,24 @@ class ObsidianMCPServer {
           },
         ],
       };
+    }
+
+    if (name === 'get_vault_info') {
+      const vault = this.getVaultConfig(args.vaultId as string | undefined);
+      const git = vault.vaultPath ? await gitInfo(vault.vaultPath) : { enabled: false };
+      const connected = await this.getRestService(vault.id).healthCheck();
+      return json({ id: vault.id, name: vault.name, vaultPath: vault.vaultPath, rest: { host: vault.host, port: vault.port,
+        protocol: vault.protocol, connected }, git, template: vault.template, imported: !!vault.imported,
+        lifecycle: connected ? 'connected' : (vault.lifecycle ?? 'offline'), capabilities: { rest: true, graph: !!vault.vaultPath,
+          semantic: !!vault.smartConnectionsPort, git: git.enabled } });
+    }
+    if (['git_status', 'git_commit', 'git_history', 'git_sync'].includes(name)) {
+      const vault = this.getVaultConfig(args.vaultId as string | undefined);
+      if (!vault.vaultPath) throw new Error('Vault path is required for Git tools');
+      if (name === 'git_status') return json(await gitInfo(vault.vaultPath));
+      if (name === 'git_commit') { await gitCommit(vault.vaultPath, String(args.message)); return json(await gitInfo(vault.vaultPath)); }
+      if (name === 'git_history') return json(await gitHistory(vault.vaultPath, Number(args.limit ?? 10)));
+      await gitSync(vault.vaultPath); return json(await gitInfo(vault.vaultPath));
     }
 
     const vaultId = this.resolveVaultId(args);
@@ -486,6 +540,8 @@ class ObsidianMCPServer {
   }
 
   async run(): Promise<void> {
+    this.managementCapabilities = await commandCapabilities();
+    console.error(`Management capabilities: git=${this.managementCapabilities.git}, gh=${this.managementCapabilities.gh}, githubAuthenticated=${this.managementCapabilities.githubAuthenticated}`);
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('obsidian-mcp-server running on stdio');

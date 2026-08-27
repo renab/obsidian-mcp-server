@@ -1,6 +1,6 @@
 {
-  "name": "@connorbritain/obsidian-mcp-server",
-  "version": "0.2.3",
+  "name": "@renab/obsidian-mcp-server",
+  "version": "0.3.0",
   "description": "TypeScript MCP server for Obsidian with core tools, graph analytics, and semantic search",
   "type": "module",
   "main": "dist/index.js",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ConnorBritain/obsidian-mcp-server.git"
+    "url": "git+https://github.com/renab/obsidian-mcp-server.git"
   },
   "keywords": [
     "mcp",
@@ -22,12 +22,12 @@
     "graph-analysis",
     "semantic-search"
   ],
-  "author": "Connor Britain",
+  "author": "Connor Britain and contributors",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ConnorBritain/obsidian-mcp-server/issues"
+    "url": "https://github.com/renab/obsidian-mcp-server/issues"
   },
-  "homepage": "https://github.com/ConnorBritain/obsidian-mcp-server#readme",
+  "homepage": "https://github.com/renab/obsidian-mcp-server#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -42,6 +42,7 @@
     "start": "node dist/index.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/tests/*.test.js",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -57,6 +58,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.0",
     "@types/node": "^20.11.30",
     "@typescript-eslint/eslint-plugin": "^8.50.1",
     "@typescript-eslint/parser": "^8.50.1",
@@ -66,6 +68,7 @@
     "eslint-plugin-jsonc": "^2.15.0",
     "eslint-plugin-n": "^17.10.3",
     "eslint-plugin-promise": "^7.1.0",
+    "globals": "^16.4.0",
     "tsup": "^8.1.0",
     "tsx": "^4.16.0",
     "typescript": "^5.6.3"
