@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -41,5 +41,8 @@ test('templates include all required families and substitute text without leakin
     GITHUB_REPOSITORY: 'obsidian-novel', REST_API_PORT: '27124', REST_API_KEY: 'test-secret' });
   const home = await readFile(join(destination, 'Home.md'), 'utf8');
   assert.match(home, /Novel/);
-  assert.doesNotMatch(home, /Sweetwater/i);
+  const textualFiles = (await readdir(destination, { recursive: true }))
+    .filter((path) => /(?:\.md|\.json|\.gitignore)$/.test(path));
+  const allTemplateText = (await Promise.all(textualFiles.map((path) => readFile(join(destination, path), 'utf8')))).join('\n');
+  assert.doesNotMatch(allTemplateText, /Sweetwater/i);
 });

@@ -18,7 +18,10 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        projectService: { allowDefaultProject: ['tests/*.ts'] },
+        projectService: {
+          allowDefaultProject: ['tests/*.ts'],
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
+        },
         tsconfigRootDir: import.meta.dirname,
         ecmaVersion: 2022,
         sourceType: 'module',

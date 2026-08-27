@@ -2,7 +2,7 @@
 
 This checklist mirrors the user-provided implementation order and remains the completion gate even when the in-app plan is summarized into broader workstreams.
 
-1. [ ] Preserve the upstream baseline; the extended fork builds, but the untouched checkout's initial build was blocked by its dependency-script policy and is recorded as such.
+1. [x] Verify the untouched upstream commit builds and type-checks in an isolated worktree, then preserve it as the mergeable baseline.
 2. [x] Add tests around current multi-vault configuration.
 3. [x] Refactor configuration into runtime `VaultRegistry`.
 4. [x] Preserve registry/file/JSON/legacy environment compatibility.
@@ -26,7 +26,7 @@ This checklist mirrors the user-provided implementation order and remains the co
 22. [ ] Sweetwater import, repository preservation, plugin installation, registry routing, and secret exclusion are verified; live REST awaits Obsidian availability.
 23. [x] Create and verify a private-repository EVE-character test vault (correctly offline until opened in Obsidian).
 24. [x] Create and verify a private-repository book-project test vault (correctly offline until opened in Obsidian).
-25. [ ] One MCP process routes three registered vaults independently; simultaneous live REST awaits Obsidian availability.
+25. [ ] One MCP process routes three registered vaults and three authenticated mock REST endpoints independently; simultaneous actual Obsidian REST awaits application availability.
 26. [ ] All three are independently addressable for local tools; live REST addressability remains open.
 27. [x] Audit schemas and code for absence of remote repository deletion.
 28. [ ] The parity inventory identifies remaining folder/custom-sort and live REST gaps; the original Sweetwater MCP remains intact and must not be retired yet.

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 
+import { runExecutable } from '../src/services/git-service.js';
 import { TemplateManager } from '../src/services/template-manager.js';
 import { VaultProvisioner } from '../src/services/vault-provisioner.js';
 import { VaultRegistry } from '../src/services/vault-registry.js';
@@ -88,4 +89,29 @@ test('failure after remote creation preserves the remote and local vault but doe
   assert.equal((await stat(join(root, 'preserved'))).isDirectory(), true);
   assert.deepEqual((await registry.load()).vaults, []);
   assert.ok(!calls.some((call) => /delete/i.test(call)));
+});
+
+test('new vault initializes and commits real Git while reporting GitHub provisioning unavailable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'vault-local-git-'));
+  const registry = new VaultRegistry(join(root, 'registry.json'));
+  const dependencies = {
+    capabilities: async () => ({ git: true, gh: true, githubAuthenticated: false }),
+    configurePlugins: async () => [],
+    run: async (command: string, args: string[], cwd?: string) => {
+      const result = await runExecutable(command, args, cwd);
+      if (command === 'git' && args[0] === 'init') {
+        await runExecutable('git', ['config', 'user.email', 'test@example.invalid'], cwd);
+        await runExecutable('git', ['config', 'user.name', 'Test'], cwd);
+      }
+      return result;
+    },
+  };
+  const provisioner = new VaultProvisioner(root, registry, new TemplateManager(join(process.cwd(), 'templates')), true, dependencies);
+  const result = await provisioner.create({ id: 'local-git', name: 'Local Git', template: 'default' });
+  assert.equal(result.githubProvisioning, 'unavailable');
+  assert.equal(result.repositoryUrl, null);
+  assert.match((await run('git', ['log', '-1', '--format=%s'], { cwd: join(root, 'local-git') })).stdout.trim(), /Initialize Obsidian vault: Local Git/);
+  assert.equal((await run('git', ['ls-files', '.obsidian/plugins/obsidian-local-rest-api/data.json'], { cwd: join(root, 'local-git') })).stdout.trim(), '');
+  const key = (await registry.load()).vaults[0].apiKey;
+  await assert.rejects(run('git', ['grep', '-F', key], { cwd: join(root, 'local-git') }));
 });
