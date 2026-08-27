@@ -53,12 +53,15 @@ class ObsidianMCPServer {
   private graphServices = new Map<string, GraphService>();
   private semanticServices = new Map<string, SmartConnectionsService>();
   private registry?: VaultRegistry;
-  private templates = new TemplateManager();
+  private templates?: TemplateManager;
   private managementCapabilities = { git: false, gh: false, githubAuthenticated: false };
 
   constructor() {
     this.config = getConfig();
-    if (this.config.registryPath) this.registry = new VaultRegistry(this.config.registryPath);
+    if (this.config.registryPath) {
+      this.registry = new VaultRegistry(this.config.registryPath);
+      this.templates = new TemplateManager(this.registry);
+    }
 
     this.server = new Server(
       {
@@ -281,18 +284,29 @@ class ObsidianMCPServer {
       this.restServices.clear(); this.graphServices.clear(); this.semanticServices.clear();
     };
 
-    if (name === 'list_vault_templates') return json(await this.templates.list());
+    const requireTemplates = () => {
+      if (!this.templates) throw new Error('OBSIDIAN_VAULT_REGISTRY and a registered Templates vault are required');
+      return this.templates;
+    };
+    if (name === 'list_vault_templates') return json((await requireTemplates().list()).map(({ id, name: templateName, description, version, tags, requiredVariables, files }) =>
+      ({ id, name: templateName, description, version, tags: tags ?? [], requiredVariables: requiredVariables ?? [], files })));
+    if (name === 'get_vault_template') {
+      const { path: _path, manifestPath: _manifestPath, ...template } = await requireTemplates().get(String(args.templateId));
+      return json(template);
+    }
+    if (name === 'validate_vault_template') return json(await requireTemplates().validate(String(args.templateId)));
+    if (name === 'refresh_vault_templates') return json(await requireTemplates().refresh());
     if (name === 'register_vault') {
       if (!this.config.vaultRoot) throw new Error('OBSIDIAN_VAULT_ROOT must be configured');
-      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry(), this.templates).register({
+      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry()).register({
         id: String(args.id), name: String(args.name), vaultPath: String(args.vaultPath), apiKey: String(args.apiKey),
-        restPort: Number(args.restPort), repository: args.repository as string | undefined,
+        restPort: Number(args.restPort), repository: args.repository as string | undefined, role: args.role as string | undefined,
       });
       await refresh(); return json(result);
     }
     if (name === 'create_vault') {
       if (!this.config.vaultRoot) throw new Error('OBSIDIAN_VAULT_ROOT must be configured');
-      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry(), this.templates).create(args as never);
+      const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry(), requireTemplates()).create(args as never);
       await refresh(); return json(result);
     }
     if (name === 'unregister_vault') {
@@ -306,7 +320,8 @@ class ObsidianMCPServer {
         const connected = await this.getRestService(id).healthCheck();
         return { id, name: vault.name, isDefault: id === this.config.defaultVaultId, connected,
           gitEnabled: git.enabled, gitDirty: git.dirty, repositoryConfigured: !!git.repository,
-          restReachable: connected, imported: !!vault.imported, lifecycle: connected ? 'connected' : (vault.lifecycle ?? 'offline'), port: vault.port, protocol: vault.protocol };
+          restReachable: connected, imported: !!vault.imported, role: vault.role ?? null,
+          lifecycle: connected ? 'connected' : (vault.lifecycle ?? 'offline'), port: vault.port, protocol: vault.protocol };
       }));
       return {
         content: [

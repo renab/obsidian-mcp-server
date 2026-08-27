@@ -1,6 +1,6 @@
 # Multi-vault objective completion audit
 
-This audit distinguishes protocol-compatible mock coverage from the final live Obsidian evidence collected on 2026-08-27.
+This audit records current evidence and leaves live gates explicitly open.
 
 ## Engineering requirements
 
@@ -12,15 +12,15 @@ This audit distinguishes protocol-compatible mock coverage from the final live O
 | Runtime refresh without MCP restart | Proven | Mutable configuration test and management handlers that reload registry and clear service caches. |
 | Safe registration/unregistration | Proven | Real Git import test, root constraint test, local-file preservation test, and Sweetwater import evidence. |
 | Port allocation | Proven | Registry-used, OS-bound, requested-range, and exhaustion tests. |
-| Template manager and four template families | Proven | Listing/substitution tests and full-text privacy scan. |
+| Dedicated Templates vault and three required families | Proven | Private `obsidian-vault-templates` repository, dynamic manifest discovery, substitution tests, manual-template refresh test, and invalid-template reporting. |
 | Sweetwater-derived generalized book template | Proven | Structural analysis document and generalized template tree with typed object templates. |
-| New vault filesystem/Git provisioning | Proven | Real local-Git initialization/commit test and two provisioned development vaults. |
-| Private GitHub repository provisioning | Proven | Separate EVE and book repositories verified `PRIVATE`; failure and post-remote rollback semantics tested. |
+| New vault filesystem/Git provisioning | Proven | Real local-Git initialization/commit test and provisioned EVE vault. |
+| Private GitHub repository provisioning | Proven | Separate Templates and EVE private repositories plus failure and post-remote rollback semantics tests. |
 | Obsidian Git and Local REST plugin provisioning | Proven | Release assets installed in both test vaults and Sweetwater; existing Git plugin/settings preservation tested. |
 | Per-vault REST keys excluded from Git | Proven | Exact-key audit for all three development vaults and real initial-commit test. |
 | Management and Git MCP tools | Proven | Schemas, Git status/commit/history/sync tests, and live MCP tool inventory. |
-| Lifecycle reflects endpoint health | Proven | Sweetwater, EVE, and book endpoints were simultaneously healthy on ports 27124–27126 and reported connected. |
-| Independent REST authentication/routing | Proven live and against protocol-compatible mocks | One MCP process independently wrote, read, searched, and cleaned up an isolated note in all three actual Obsidian vaults using distinct bearer keys. |
+| Lifecycle reflects endpoint health | Proven | Sweetwater, EVE, and Templates were simultaneously healthy on their assigned ports. |
+| Independent REST authentication/routing | Proven live and against protocol-compatible mocks | One MCP process independently wrote, read, searched, and cleaned up an isolated note in Sweetwater, EVE, and Templates using distinct bearer keys. |
 | No remote repository deletion capability | Proven | Schema test, rollback tests, source scan, and absence of any delete API/CLI implementation. |
 | Documentation and Windows examples | Proven | README architecture, setup, migration, security, templates, ports, troubleshooting, and client configuration. |
 
@@ -31,16 +31,16 @@ This audit distinguishes protocol-compatible mock coverage from the final live O
 3. Preserve Sweetwater `.git`, history, branch, and remote — **proven**; pre-import HEAD remains `fd42089`, branch `master`, and origin unchanged. A complete bundle backup is verified.
 4. Standard MCP read/write/search against actual Sweetwater REST — **proven** by the gated live integration test.
 5. Analyze Sweetwater and produce generalized book template — **proven**.
-6. Create a book-project vault — **proven**.
-7. Create its private GitHub repository — **proven**.
+6. Maintain the Sweetwater-derived `book-project` template — **proven** in the Templates vault. A standalone demo vault was skipped at the user's request.
+7. Templates vault has its own private repository — **proven**.
 8. Create `eve-wormhole-alpha` — **proven**.
 9. Create its separate private GitHub repository — **proven**.
-10. Initialize and push both new vaults — **proven**; both repositories are clean and track their origins.
-11. Obsidian Git installed/configured — **proven**, including runtime activation in all three loaded vaults.
+10. Initialize and push EVE and Templates — **proven**; both repositories track independent origins.
+11. Obsidian Git installed/configured — **proven**, including the Templates vault.
 12. Local REST configuration generated safely — **proven**, including authenticated live endpoints.
 13. New vaults appear without server restart — **proven for runtime configuration and live MCP registry inventory**.
-14. REST becomes healthy after loading each vault — **proven** on ports 27124–27126.
-15. Standard upstream tools work for each actual vault through REST — **proven** for write, read, search, delete cleanup, inventory, and routing.
+14. REST becomes healthy after loading each vault — **proven** for Sweetwater, EVE, and Templates.
+15. Standard upstream tools work for each actual vault through REST — **proven** for isolated write, read, search, cleanup, inventory, and routing.
 16. Additional vaults require no MCP client reconfiguration — **proven architecturally and by runtime registry tests**.
 17. Each vault independently addressable — **proven live through one MCP process**.
 18. Each provisioned vault pushes to a different private repository — **proven**.
@@ -52,4 +52,4 @@ This audit distinguishes protocol-compatible mock coverage from the final live O
 
 ## Retirement boundary
 
-The multi-vault objective is complete without deleting or disabling the original Sweetwater MCP. Retirement remains a separate future decision after folder mutation and custom-sort parity is implemented or explicitly waived.
+The original Sweetwater MCP has not been retired. Retirement remains a future decision after folder mutation and custom-sort parity is implemented or explicitly waived.

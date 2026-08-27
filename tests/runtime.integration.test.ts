@@ -21,7 +21,7 @@ test('one live MCP process addresses all development-registry vaults independent
     const text = ((listed as { content: { text: string }[] }).content[0]).text;
     assert.doesNotMatch(text, /apiKey|unused-bootstrap-key/);
     const ids = (JSON.parse(text) as { vaults: { id: string }[] }).vaults.map((vault) => vault.id);
-    assert.deepEqual(ids, ['sweetwater', 'eve-wormhole-alpha', 'book-project-test']);
+    assert.deepEqual(ids, ['sweetwater', 'eve-wormhole-alpha', 'templates']);
     for (const vaultId of ids) {
       const result = await client.callTool({ name: 'pattern_search', arguments: { vaultId, patterns: ['^#'], options: { maxMatches: 1 } } });
       assert.equal(result.isError, undefined, `${vaultId} should route successfully`);
@@ -42,7 +42,7 @@ test('actual Obsidian endpoints support isolated read, write, search, and cleanu
     const client = new Client({ name: 'live-obsidian-multi-vault-test', version: '1.0.0' });
     const filepath = 'Multi Vault Live Test.md';
     const marker = `multi-vault-live-${Date.now()}`;
-    const ids = ['sweetwater', 'eve-wormhole-alpha', 'book-project-test'];
+    const ids = ['sweetwater', 'eve-wormhole-alpha', 'templates'];
     await client.connect(transport);
     try {
       for (const vaultId of ids) {

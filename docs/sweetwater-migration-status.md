@@ -7,11 +7,11 @@ Sweetwater is registered in the ignored development registry and retains its ori
 - List/read/write/append/delete note or file operations have equivalents in the upstream REST-backed tool set.
 - Search has simple, JsonLogic, regex-pattern, graph, and optional semantic variants.
 - Git inspection and management are available per `vaultId`.
-- One MCP process independently routes Sweetwater and both provisioned test vaults for local tools.
+- One MCP process independently routes Sweetwater, EVE, and Templates in deterministic and authenticated live tests.
 
 ## Deliberately open gates
 
-- Obsidian is not installed/running on the current host, so REST read/write/search health cannot be compared live yet.
+- Sweetwater, EVE, and Templates have passed isolated live REST write, read, search, and cleanup through the new MCP.
 - The old Sweetwater MCP includes filesystem-oriented folder creation, move, rename, bulk import, and Custom File Explorer Sorting helpers that do not have direct equivalents in the upstream REST tool surface.
 - The old MCP must remain available until those gaps are either accepted as unnecessary, implemented safely, or covered through Obsidian commands, and live REST results match.
 

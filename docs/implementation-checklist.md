@@ -11,7 +11,7 @@ This checklist mirrors the user-provided implementation order and remains the co
 7. [x] Test dynamic vault replacement without restart.
 8. [x] Import Sweetwater into a development registry without changing Git history.
 9. [x] Analyze Sweetwater's reusable organization and writing conventions.
-10. [x] Add template manager.
+10. [x] Add a dynamic template manager backed by a registered `template-source` vault.
 11. [x] Build generalized `book-project` template.
 12. [x] Build `eve-character` template.
 13. [x] Add secure, OS-aware port allocator.
@@ -25,10 +25,10 @@ This checklist mirrors the user-provided implementation order and remains the co
 21. [x] Add migration and secret-management documentation.
 22. [x] Sweetwater import, repository preservation, runtime plugin activation, live registry routing, and secret exclusion are verified.
 23. [x] Create and verify a private-repository EVE-character test vault (correctly offline until opened in Obsidian).
-24. [x] Create and verify a private-repository book-project test vault (correctly offline until opened in Obsidian).
-25. [x] One MCP process routes all three registered vaults independently through simultaneous authenticated live Obsidian REST endpoints; mock coverage remains as deterministic regression evidence.
-26. [ ] All three are independently addressable for local tools; live REST addressability remains open.
+24. [x] Create, register, commit, and push the dedicated private `obsidian-vault-templates` repository containing `default`, `book-project`, and `eve-character`.
+25. [x] Discover the three required templates dynamically and verify manual-template refresh plus invalid-template reporting.
+26. [x] Sweetwater, EVE, and Templates are independently addressable through one MCP process for authenticated live REST read, write, search, and cleanup.
 27. [x] Audit schemas and code for absence of remote repository deletion.
 28. [ ] The parity inventory identifies remaining folder/custom-sort and live REST gaps; the original Sweetwater MCP remains intact and must not be retired yet.
 
-The project is not complete until the full Definition of Done—including live Obsidian REST health, independent private remotes, secret audit, Sweetwater preservation, upstream compatibility, and old-MCP parity—is verified.
+Per the user's later direction, no standalone Book Project demo vault is part of the active managed set. The required `book-project` template remains in the Templates vault.

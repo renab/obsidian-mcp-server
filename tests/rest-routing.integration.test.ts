@@ -52,7 +52,7 @@ async function mockVault(id: string): Promise<MockVault> {
 
 test('one MCP process routes authenticated REST reads, writes, search, and health to three vaults',
   { skip: process.env.OBSIDIAN_REST_INTEGRATION !== '1' }, async () => {
-    const mocks = await Promise.all(['sweetwater', 'eve-wormhole-alpha', 'book-project-test'].map(mockVault));
+    const mocks = await Promise.all(['sweetwater', 'eve-wormhole-alpha', 'templates'].map(mockVault));
     const root = await mkdtemp(join(tmpdir(), 'obsidian-rest-routing-'));
     const registry = join(root, 'registry.json');
     await writeFile(registry, JSON.stringify({ version: 1, nextRestPort: 27127, vaults: mocks.map((mock) => ({

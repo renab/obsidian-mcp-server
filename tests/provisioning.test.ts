@@ -7,22 +7,24 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { runExecutable } from '../src/services/git-service.js';
-import { TemplateManager } from '../src/services/template-manager.js';
 import { VaultProvisioner } from '../src/services/vault-provisioner.js';
 import { VaultRegistry } from '../src/services/vault-registry.js';
+import { createTemplateManager } from './template-fixture.js';
 
 const run = promisify(execFile);
 
 test('provisions a template, substitutes variables, writes non-secret metadata, and registers dynamically', async () => {
   const root = await mkdtemp(join(tmpdir(), 'vault-create-'));
   const registry = new VaultRegistry(join(root, 'registry.json'));
-  const provisioner = new VaultProvisioner(root, registry, new TemplateManager(join(process.cwd(), 'templates')), false);
+  const provisioner = new VaultProvisioner(root, registry, await createTemplateManager(root, registry), false);
   const result = await provisioner.create({ id: 'test-book', name: 'Test Book', template: 'book-project', gitEnabled: false });
   assert.equal(result.registryStatus, 'registered');
   assert.equal(result.lifecycle, 'offline');
   assert.match(await readFile(join(root, 'test-book', 'Home.md'), 'utf8'), /Test Book/);
-  assert.doesNotMatch(await readFile(join(root, 'test-book', '.mcp-vault.json'), 'utf8'), /apiKey|secret/i);
-  assert.equal((await registry.load()).vaults[0].id, 'test-book');
+  const metadata = JSON.parse(await readFile(join(root, 'test-book', '.mcp-vault.json'), 'utf8'));
+  assert.deepEqual(metadata.template, { id: 'book-project', version: '1.0.0' });
+  assert.doesNotMatch(JSON.stringify(metadata), /apiKey|secret/i);
+  assert.ok((await registry.load()).vaults.some((vault) => vault.id === 'test-book'));
 });
 
 test('imports an existing Git repository without replacing branch, remote, history, or gitignore', async (context) => {
@@ -62,10 +64,10 @@ test('failed GitHub creation rolls back local files and never registers a half-c
       return { stdout: '', stderr: '' };
     },
   };
-  const provisioner = new VaultProvisioner(root, registry, new TemplateManager(join(process.cwd(), 'templates')), true, dependencies);
+  const provisioner = new VaultProvisioner(root, registry, await createTemplateManager(root, registry), true, dependencies);
   await assert.rejects(provisioner.create({ id: 'failed', name: 'Failed' }), /simulated repository creation failure/);
   await assert.rejects(stat(join(root, 'failed')), /ENOENT/);
-  assert.deepEqual((await registry.load()).vaults, []);
+  assert.ok(!(await registry.load()).vaults.some((vault) => vault.id === 'failed'));
   assert.ok(!calls.some((call) => /delete/i.test(call)));
 });
 
@@ -84,10 +86,10 @@ test('failure after remote creation preserves the remote and local vault but doe
       return { stdout: '', stderr: '' };
     },
   };
-  const provisioner = new VaultProvisioner(root, registry, new TemplateManager(join(process.cwd(), 'templates')), true, dependencies);
+  const provisioner = new VaultProvisioner(root, registry, await createTemplateManager(root, registry), true, dependencies);
   await assert.rejects(provisioner.create({ id: 'preserved', name: 'Preserved' }), /intentionally been preserved/);
   assert.equal((await stat(join(root, 'preserved'))).isDirectory(), true);
-  assert.deepEqual((await registry.load()).vaults, []);
+  assert.ok(!(await registry.load()).vaults.some((vault) => vault.id === 'preserved'));
   assert.ok(!calls.some((call) => /delete/i.test(call)));
 });
 
@@ -106,7 +108,7 @@ test('new vault initializes and commits real Git while reporting GitHub provisio
       return result;
     },
   };
-  const provisioner = new VaultProvisioner(root, registry, new TemplateManager(join(process.cwd(), 'templates')), true, dependencies);
+  const provisioner = new VaultProvisioner(root, registry, await createTemplateManager(root, registry), true, dependencies);
   const result = await provisioner.create({ id: 'local-git', name: 'Local Git', template: 'default' });
   assert.equal(result.githubProvisioning, 'unavailable');
   assert.equal(result.repositoryUrl, null);

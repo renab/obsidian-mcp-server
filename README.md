@@ -46,7 +46,8 @@ Remote repository deletion is not supported. There is no deletion tool, configur
 - `register_vault`: import an existing vault without running `git init`, changing its branch or remote, or rewriting its history.
 - `unregister_vault`: remove only the registry entry.
 - `get_vault_info` and `list_vaults`: return lifecycle, REST, Git, repository, template, and capability state without credentials.
-- `list_vault_templates`: list `default`, `project`, `eve-character`, and `book-project`.
+- `list_vault_templates`: dynamically list enabled templates from the registered `templates` vault.
+- `get_vault_template`, `validate_vault_template`, and `refresh_vault_templates`: inspect, validate, and immediately rescan editable Templates-vault content.
 - `git_status`, `git_commit`, `git_history`, and `git_sync`: scoped native-Git operations. Commit does not push; sync reports conflicts rather than resolving them destructively.
 
 Example creation request:
@@ -63,6 +64,8 @@ Example creation request:
 Filesystem creation can succeed while Obsidian is closed. Such a vault is `offline`, not falsely `connected`; open it in Obsidian and enable/install the community plugins named in `.obsidian/community-plugins.json` before expecting REST connectivity.
 
 ## Templates and Obsidian configuration
+
+The authoritative source is a normal registered Obsidian vault with `vaultId: templates` and `role: template-source`. Each folder under its `Templates/` directory contains a validated `template.json` plus a `vault/` payload. Changes made directly in Obsidian are picked up when template operations rescan the vault; `refresh_vault_templates` is the explicit fallback. No MCP rebuild is required.
 
 Templates track safe Obsidian settings and declare Obsidian Git plus Local REST API. Workspace files and Local REST API `data.json` are ignored because they are machine-specific or secret-bearing. The rest of `.obsidian` is intentionally not ignored, allowing safe plugin settings to travel between machines. Obsidian Git defaults to pull on open and ten-minute commit/push intervals.
 
@@ -282,7 +285,10 @@ All tools accept an optional `vaultId` argument. If omitted, the server uses the
 |------|-------------|
 | `list_vaults` | List all configured vaults with their IDs, capabilities, and connection info |
 | `get_vault_info` | Inspect lifecycle, REST, Git, repository, template, and capability state without secrets |
-| `list_vault_templates` | List reusable template families |
+| `list_vault_templates` | Dynamically list enabled templates from the Templates vault |
+| `get_vault_template` | Return template metadata and structural summary |
+| `validate_vault_template` | Check manifest, paths, nested Git, and secret-bearing content |
+| `refresh_vault_templates` | Force immediate template rediscovery |
 | `register_vault` | Import an existing vault while preserving Git state |
 | `unregister_vault` | Remove only the registry entry; never delete local or remote data |
 | `create_vault` | Provision a templated vault, plugins, Git, private GitHub repository, port, and registry entry |

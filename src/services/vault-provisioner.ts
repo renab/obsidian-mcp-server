@@ -20,7 +20,7 @@ function validateDisplayName(name: string) {
 
 export interface CreateVaultInput {
   id: string; name: string; template?: string; githubRepoName?: string; description?: string;
-  restPort?: number; gitEnabled?: boolean; openInObsidian?: boolean;
+  restPort?: number; gitEnabled?: boolean; openInObsidian?: boolean; templateVariables?: Record<string, string>;
 }
 
 interface ProvisionerDependencies {
@@ -36,7 +36,7 @@ const defaultDependencies: ProvisionerDependencies = {
 };
 
 export class VaultProvisioner {
-  constructor(readonly vaultRoot: string, readonly registry: VaultRegistry, readonly templates = new TemplateManager(),
+  constructor(readonly vaultRoot: string, readonly registry: VaultRegistry, readonly templates?: TemplateManager,
     readonly installPlugins = true, readonly dependencies: ProvisionerDependencies = defaultDependencies) {}
 
   private target(id: string) {
@@ -65,12 +65,15 @@ export class VaultProvisioner {
     let plugins: PluginInstallResult[] = [];
     try {
       await mkdir(this.vaultRoot, { recursive: true });
-      await this.templates.instantiate(template, path, {
+      if (!this.templates) throw new Error('A registered Templates vault is required to create a vault');
+      const instantiatedTemplate = await this.templates.instantiate(template, path, {
         VAULT_ID: input.id, VAULT_NAME: input.name, CREATED_DATE: new Date().toISOString(),
-        GITHUB_REPOSITORY: repositoryName, REST_API_PORT: String(port), REST_API_KEY: apiKey,
+        GITHUB_REPOSITORY: repositoryName, REST_API_PORT: String(port),
+        ...(input.templateVariables ?? {}),
       });
       await writeFile(resolve(path, '.mcp-vault.json'), `${JSON.stringify({
-        schemaVersion: 1, vaultId: input.id, displayName: input.name, template,
+        schemaVersion: 1, vaultId: input.id, displayName: input.name,
+        template: { id: instantiatedTemplate.id, version: instantiatedTemplate.version },
         managedBy: 'obsidian-mcp-server', createdAt: new Date().toISOString(), imported: false, description: input.description,
       }, null, 2)}\n`);
       if (this.installPlugins) plugins = await this.dependencies.configurePlugins(path, apiKey, port);
@@ -94,7 +97,8 @@ export class VaultProvisioner {
         }
       }
       const vault: VaultConfig = { id: input.id, name: input.name, apiKey, host: '127.0.0.1', port,
-        protocol: 'https', vaultPath: path, repository, template, createdAt: new Date().toISOString(),
+        protocol: 'https', vaultPath: path, repository,
+        template: { id: instantiatedTemplate.id, version: instantiatedTemplate.version }, createdAt: new Date().toISOString(),
         imported: false, managed: true, gitEnabled: input.gitEnabled !== false, lifecycle: 'offline' };
       await this.registry.add(vault);
       let openedInObsidian = false;
@@ -106,7 +110,7 @@ export class VaultProvisioner {
         catch (error) { openError = (error as Error).message; }
       }
       return { vaultId: input.id, vaultPath: path, restPort: port, repositoryName, repositoryUrl: repository ?? null,
-        gitInitialized: input.gitEnabled !== false, template, registryStatus: 'registered', lifecycle: 'offline',
+        gitInitialized: input.gitEnabled !== false, template: { id: instantiatedTemplate.id, version: instantiatedTemplate.version }, registryStatus: 'registered', lifecycle: 'offline',
         obsidianInitializationRequired: true, githubRepositoryCreated: remoteCreated, plugins,
         pluginInstallationRequired: !this.installPlugins || plugins.some((plugin) => !plugin.installed),
         githubProvisioning, openedInObsidian, openError };
@@ -116,7 +120,7 @@ export class VaultProvisioner {
     }
   }
 
-  async register(input: { id: string; name: string; vaultPath: string; apiKey: string; restPort: number; repository?: string }) {
+  async register(input: { id: string; name: string; vaultPath: string; apiKey: string; restPort: number; repository?: string; role?: string }) {
     if (!ID.test(input.id)) throw new Error('Invalid vault ID');
     validateDisplayName(input.name);
     if (!input.apiKey?.trim()) throw new Error('Local REST API key is required');
@@ -140,9 +144,9 @@ export class VaultProvisioner {
     if (this.installPlugins) await this.dependencies.configurePlugins(path, input.apiKey, input.restPort);
     const vault: VaultConfig = { id: input.id, name: input.name, apiKey: input.apiKey, host: '127.0.0.1',
       port: input.restPort, protocol: 'https', vaultPath: path, repository: input.repository ?? git.repository ?? undefined,
-      template: null, imported: true, managed: true, gitEnabled: git.enabled, lifecycle: 'offline' };
+      template: null, role: input.role, imported: true, managed: true, gitEnabled: git.enabled, lifecycle: 'offline' };
     await writeFile(resolve(path, '.mcp-vault.json'), `${JSON.stringify({ schemaVersion: 1, vaultId: input.id,
-      displayName: input.name, template: null, managedBy: 'obsidian-mcp-server', imported: true }, null, 2)}\n`);
+      displayName: input.name, template: null, role: input.role, managedBy: 'obsidian-mcp-server', imported: true }, null, 2)}\n`);
     await this.registry.add(vault);
     return { vaultId: input.id, vaultPath: path, imported: true, git };
   }

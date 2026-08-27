@@ -106,7 +106,8 @@ export interface VaultConfig {
   verifySsl?: boolean;
   name?: string;
   repository?: string;
-  template?: string | null;
+  template?: string | { id: string; version: string } | null;
+  role?: 'template-source' | string;
   createdAt?: string | null;
   imported?: boolean;
   managed?: boolean;
