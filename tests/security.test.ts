@@ -28,4 +28,7 @@ test('MCP exposes no remote repository deletion capability', () => {
   const schemas = JSON.stringify(VAULT_TOOLS).toLowerCase();
   assert.doesNotMatch(schemas, /delete_repository|delete_remote|repo delete/);
   assert.ok(VAULT_TOOLS.some((tool) => tool.name === 'unregister_vault'));
+  const openTool = VAULT_TOOLS.find((tool) => tool.name === 'ensure_vault_open');
+  assert.ok(openTool);
+  assert.doesNotMatch(JSON.stringify(openTool?.inputSchema), /vaultPath|command|executable/);
 });

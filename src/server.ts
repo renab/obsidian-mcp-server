@@ -16,6 +16,7 @@ import { join, relative, extname } from 'node:path';
 import { getConfig, replaceConfiguredVaults } from './config.js';
 import { commandCapabilities, gitCommit, gitHistory, gitInfo, gitSync } from './services/git-service.js';
 import { GraphService } from './services/graph-service.js';
+import { openObsidianVault, waitForEndpoint } from './services/obsidian-launcher.js';
 import { ObsidianRestService } from './services/obsidian-rest.js';
 import { SmartConnectionsService } from './services/smart-connections.js';
 import { TemplateManager } from './services/template-manager.js';
@@ -299,6 +300,19 @@ export class ObsidianMCPServer {
     }
     if (name === 'validate_vault_template') return json(await requireTemplates().validate(String(args.templateId)));
     if (name === 'refresh_vault_templates') return json(await requireTemplates().refresh());
+    if (name === 'ensure_vault_open') {
+      const vault = this.getVaultConfig(String(args.vaultId));
+      const rest = this.getRestService(vault.id);
+      if (await rest.healthCheck()) return json({ vaultId: vault.id, connected: true, alreadyOpen: true, launched: false });
+      if (!vault.vaultPath) throw new Error(`Vault "${vault.id}" does not have a registered local path`);
+      const waitSeconds = args.waitSeconds === undefined ? 20 : Number(args.waitSeconds);
+      if (!Number.isInteger(waitSeconds) || waitSeconds < 0 || waitSeconds > 60) throw new Error('waitSeconds must be an integer between 0 and 60');
+      const launch = await openObsidianVault(vault.vaultPath);
+      const connected = await waitForEndpoint(() => rest.healthCheck(), waitSeconds);
+      return json({ vaultId: vault.id, connected, alreadyOpen: false, launched: launch.launched,
+        launchSuppressed: launch.launchSuppressed, restPort: vault.port,
+        message: connected ? 'Vault opened and REST endpoint is healthy' : 'Obsidian launch requested; REST endpoint is not healthy yet' });
+    }
     if (name === 'register_vault') {
       if (!this.config.vaultRoot) throw new Error('OBSIDIAN_VAULT_ROOT must be configured');
       const result = await new VaultProvisioner(this.config.vaultRoot, requireRegistry()).register({

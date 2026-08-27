@@ -87,6 +87,7 @@ Protect that exact hostname with a Cloudflare Access self-hosted application and
 - `register_vault`: import an existing vault without running `git init`, changing its branch or remote, or rewriting its history.
 - `unregister_vault`: remove only the registry entry.
 - `get_vault_info` and `list_vaults`: return lifecycle, REST, Git, repository, template, and capability state without credentials.
+- `ensure_vault_open`: for a registered `vaultId`, return immediately if REST is healthy or open that exact vault in Obsidian and wait briefly for its assigned endpoint. Arbitrary paths and commands are not accepted.
 - `list_vault_templates`: dynamically list enabled templates from the registered `templates` vault.
 - `get_vault_template`, `validate_vault_template`, and `refresh_vault_templates`: inspect, validate, and immediately rescan editable Templates-vault content.
 - `git_status`, `git_commit`, `git_history`, and `git_sync`: scoped native-Git operations. Commit does not push; sync reports conflicts rather than resolving them destructively.

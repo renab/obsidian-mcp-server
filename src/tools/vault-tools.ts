@@ -15,6 +15,9 @@ export const VAULT_TOOLS: Tool[] = [
     },
   },
   { name: 'get_vault_info', description: 'Inspect one vault without exposing its API key.', inputSchema: { type: 'object', properties: { vaultId: { type: 'string' } }, required: ['vaultId'] } },
+  { name: 'ensure_vault_open', description: 'If a registered vault REST endpoint is unavailable, open that vault in Obsidian and wait briefly for it to become healthy. This tool cannot open arbitrary paths.', inputSchema: { type: 'object', properties: {
+    vaultId: { type: 'string' }, waitSeconds: { type: 'integer', minimum: 0, maximum: 60, default: 20 }
+  }, required: ['vaultId'] } },
   { name: 'list_vault_templates', description: 'List reusable Obsidian vault templates.', inputSchema: { type: 'object', properties: {} } },
   { name: 'get_vault_template', description: 'Return manifest metadata and a structural summary for a dynamically discovered template.', inputSchema: { type: 'object', properties: { templateId: { type: 'string' } }, required: ['templateId'] } },
   { name: 'validate_vault_template', description: 'Validate a Templates-vault template for schema, paths, nested Git repositories, and secrets.', inputSchema: { type: 'object', properties: { templateId: { type: 'string' } }, required: ['templateId'] } },
